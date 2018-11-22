@@ -1,0 +1,32 @@
+REPORT  Z_CHANGE_SYS_VAR_OWNER.
+
+TABLES: varid.
+
+SELECT-OPTIONS: so_rep FOR varid-report,
+                so_var FOR varid-variant.
+
+PARAMETERS: p_test AS CHECKBOX DEFAULT abap_true,
+            p_name LIKE varid-aename.
+
+* Find the correct system variant
+SELECT * FROM varid CLIENT SPECIFIED
+      WHERE report  IN so_rep
+        AND variant IN so_var
+        AND mandt   EQ '000'
+        AND aename  NE p_name.
+            
+  WRITE: / varid-report, varid-variant.
+  
+  IF p_test EQ abap_false.
+  * Update the system owner to the desired user
+    UPDATE varid CLIENT SPECIFIED
+        SET aename    EQ p_name
+            aedat     EQ sy-datum
+            aetime    EQ sy-uzeit
+        WHERE report  IN so_rep
+          AND variant IN so_var
+          AND mandt   EQ '000'
+          AND aename  NE p_name.
+  ENDIF.
+  
+ENDSELECT.
