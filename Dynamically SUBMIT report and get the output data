@@ -1,0 +1,89 @@
+DATA lo_ref_to_table TYPE REF TO DATA.
+
+FIELD-SYMBOLS: <lt_alv>  TYPE STANDARD TABLE.
+
+CALL FUNCTION 'Z00HR_GET_ALV_REPORTS_TEST'
+  EXPORTING
+    pernr             = '70007061'
+    report_name       = 'ZCHHR_MSS_ADQ_ANNIVERSARY'
+  IMPORTING
+    ex_alv             = lo_ref_to_table.
+
+
+ASSIGN lo_ref_to_table->* TO <lt_alv>.
+
+________________________________________________________________________
+IMPORT:
+PERNR TYPE PERSNO
+REPORT_NAME TYPE CHAR30
+EXPORT:
+EX_ALV TYPE REF TO DATA
+________________________________________________________________________
+FUNCTION z00hr_get_alv_reports_test.
+*"----------------------------------------------------------------------
+*"*"Local Interface:
+*"  IMPORTING
+*"     REFERENCE(PERNR) TYPE  PERSNO DEFAULT 00000001
+*"     REFERENCE(REPORT_NAME) TYPE  CHAR30
+*"  EXPORTING
+*"     REFERENCE(EX_ALV) TYPE REF TO  DATA
+*"----------------------------------------------------------------------
+
+  DATA: lv_lbdname TYPE ldbnam,
+        lf_ref     TYPE REF TO data.
+
+  FIELD-SYMBOLS: <fs_tab> TYPE ANY TABLE.
+
+  cl_salv_bs_runtime_info=>set(
+    EXPORTING display  = abap_false
+              metadata = abap_false
+              data     = abap_true ).
+
+  "Check if report is OM or PA
+  SELECT SINGLE ldbname FROM trdir
+                 INTO lv_lbdname
+                 WHERE name = report_name.
+
+  CHECK sy-subrc = 0.
+
+  IF lv_lbdname EQ 'PNPCE'.  "PA Report
+
+
+    "Call the report selected in the screen
+    SUBMIT (report_name) WITH pnppernr = pernr
+*                        WITH pnptimed = 'I'
+*                        WITH pnpbegda = sy-datum
+*                        WITH pnpendda = sy-datum
+                         AND  RETURN.
+
+
+  ELSEIF lv_lbdname EQ 'PCH'. "OM Report
+
+    "Call the report selected in the screen
+*      SUBMIT (p_report) WITH PCHPLVAR = p_plvar
+*                        WITH PCHOTYPE = p_otype
+*                        WITH PCHOBJID IN p_objid
+*                        AND  RETURN.
+  ENDIF.
+
+  "Get ALV from the memory
+  TRY.
+      cl_salv_bs_runtime_info=>get_data_ref(
+        IMPORTING r_data = lf_ref ).
+      ASSIGN lf_ref->* TO <fs_tab>.
+
+  "Rebuild the ALV
+*    CREATE DATA lf_ref1 LIKE LINE OF <fs_tab>.
+*    ASSIGN lf_ref1->* TO alv_table.
+*    <fs_line> = <fs_tab>.
+*UNASSIGN <alv_table>.
+
+  GET REFERENCE OF <fs_tab> INTO ex_alv.
+
+  CATCH cx_salv_bs_sc_runtime_info.
+    MESSAGE 'Unable to retrieve ALV data' TYPE 'E'.
+ENDTRY.
+
+  cl_salv_bs_runtime_info=>clear_all( ).
+
+ENDFUNCTION.
